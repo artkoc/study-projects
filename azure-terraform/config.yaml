@@ -1,22 +1,35 @@
 # 🔵 Blue    = config.yaml     → User-defined inputs (raw config)
 # 🟢 Green   = locals.tf       → Decodes YAML and makes values usable in Terraform
 # 🔴 Red     = providers.tf    → Initializes the Azure provider
-# 🟡 Yellow  = platform.tf     → Creates resources using values from locals
+# 🟡 Yellow  = landing-zones.tf     → Creates resources using values from locals
 
 global:
-  location: SwedenCentral                # 🟢 Used in locals.tf → local.config.global.location → 🟡 Resource location
+  location: SwedenCentral                # 🟢 Used in locals.tf → local.config.global.location → 🟡 Resource location for all resources
   subscription:
-    id: 13bebc20-5b21-4ab2-94c5-a2d2d084fd75  # 🟢 Used in locals.tf → local.subscription_id → 🔴 provider
+    id: 13bebc20-5b21-4ab2-94c5-a2d2d084fd75  # 🟢 Used in locals.tf → local.subscription_id → 🔴 Injected into Azure provider config
 
 landing_zones:
   platform:
-    id: PLATFORM                         # 🟡 Used in platform.tf to construct RG name and check if log analytics is enabled
-    sequence_no: 1                       # 🟡 Used in platform.tf → naming pattern
-    virtual network:                     # (Empty, may be used in future expansion)
-    log_analytics: true                  # 🟡 Used in conditional `count` logic to create log analytics resource
+    id: PLATFORM                         # 🟡 Used in landing-zones.tf → Resource group naming, VNET naming, etc.
+    sequence_no: 1                       # 🟡 Determines the order in naming or provisioning resources
+    virtual_network:                     # 🟡 Block for VNET configuration (used in locals.tf → passed to azurerm_virtual_network)
+      address: "10.0.0.0/24"             # 🟡 VNET CIDR range used in VNET definition
+      subnet:
+        address: "10.0.1.0/28"          # 🟡 Subnet CIDR range used in subnet resource
+    log_analytics: true                  # 🟡 Enables conditional creation of Log Analytics Workspace (via count)
+
   app_alpha:
-    id: APP-ALPHA                        # 🟡 Used in RG naming
-    sequence_no: 1
+    id: APPALPHA                         # 🟡 Used in naming resources like RG, NSG, etc.
+    sequence_no: 1                       # 🟡 Helps determine uniqueness and sequence in naming
+    virtual_network:
+      address: "10.1.0.0/24"                         # ⚠️ Intentionally left blank — skipped in locals.tf due to filtering logic
+      subnet:
+        address: "10.1.0.0/28"                      # ⚠️ Empty string — subnet creation skipped due to validation
+
   app_beta:
-    id: APP-BETA
-    sequence_no: 2
+    id: APPBETA                          # 🟡 Used in naming and resource group logic
+    sequence_no: 2                       # 🟡 Helps with naming and order among landing zones
+    virtual_network:
+      address:                         # ⚠️ No VNET defined → excluded from local.vnets in locals.tf
+      subnet:
+        address:                      # ⚠️ No subnet defined → excluded from local.subnets in locals.tf
