@@ -4,11 +4,16 @@
 # 🟡 Yellow  = landing-zones.tf     → Creates resources using values from locals
 
 locals {
+
   vnets = { for k, v in local.config.landing_zones : k => v if local.config.landing_zones[k].virtual_network.address != null } 
   # 🟢 Filters landing zones that have a non-null VNET address and stores them for VNET creation
 
   subnets = { for k, v in local.config.landing_zones : k => v if local.config.landing_zones[k].virtual_network.subnet.address != null } 
   # 🟢 Filters landing zones that have a non-null subnet address and stores them for subnet creation
+
+  hub = { for k, v in azurerm_virtual_network.vnets : k => v if k == "platform"}
+  spokes = { for k, v in azurerm_virtual_network.vnets : k => v if k != "platform"}
+
 }
 
 resource "azurerm_resource_group" "rgs" {
@@ -96,18 +101,30 @@ resource "azurerm_subnet" "subnets" {
   # 🟡 Subnet resides in the corresponding RG
 }
 
-/*
-# enable global peering between the two virtual network
-resource "azurerm_virtual_network_peering" "peering" {
-  count                        = length(var.location)
-  name                         = "peering-to-${element(azurerm_virtual_network.vnet.*.name, 1 - count.index)}"
-  resource_group_name          = element(azurerm_resource_group.example.*.name, count.index)
-  virtual_network_name         = element(azurerm_virtual_network.vnet.*.name, count.index)
-  remote_virtual_network_id    = element(azurerm_virtual_network.vnet.*.id, 1 - count.index)
-  allow_virtual_network_access = true
-  allow_forwarded_traffic      = true
+resource "azurerm_subnet_network_security_group_association" "nsg_subnet" {
+  for_each = local.subnets
 
-  # `allow_gateway_transit` must be set to false for vnet Global Peering
-  allow_gateway_transit = false
+  subnet_id                 = azurerm_subnet.subnets[each.key].id
+  network_security_group_id = azurerm_network_security_group.nsgs[each.key].id
 }
-*/
+
+
+# enable global peering between the two virtual network
+resource "azurerm_virtual_network_peering" "spoke_to_hub" {
+  for_each = local.spokes
+
+  name = lower(format("peering-%s-to-hub", each.key ))
+  resource_group_name       = local.spokes[each.key].resource_group_name
+  virtual_network_name      = local.spokes[each.key].name
+  remote_virtual_network_id = local.hub["platform"].id
+}
+
+resource "azurerm_virtual_network_peering" "hub_to_spoke" {
+  for_each = local.spokes
+
+  name = lower(format("peering-hub-to-%s", each.key ))
+  resource_group_name       = local.hub["platform"].resource_group_name
+  virtual_network_name      = local.hub["platform"].name
+  remote_virtual_network_id = local.spokes[each.key].id
+
+}

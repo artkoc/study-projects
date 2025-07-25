@@ -15,7 +15,7 @@ landing_zones:
     virtual_network:                     # 🟡 Block for VNET configuration (used in locals.tf → passed to azurerm_virtual_network)
       address: "10.0.0.0/24"             # 🟡 VNET CIDR range used in VNET definition
       subnet:
-        address: "10.0.1.0/28"          # 🟡 Subnet CIDR range used in subnet resource
+        address: "10.0.0.0/24"          # 🟡 Subnet CIDR range used in subnet resource
     log_analytics: true                  # 🟡 Enables conditional creation of Log Analytics Workspace (via count)
 
   app_alpha:
@@ -24,7 +24,7 @@ landing_zones:
     virtual_network:
       address: "10.1.0.0/24"                         # ⚠️ Intentionally left blank — skipped in locals.tf due to filtering logic
       subnet:
-        address: "10.1.0.0/28"                      # ⚠️ Empty string — subnet creation skipped due to validation
+        address: "10.1.0.0/24"                      # ⚠️ Empty string — subnet creation skipped due to validation
 
   app_beta:
     id: APPBETA                          # 🟡 Used in naming and resource group logic
@@ -33,3 +33,11 @@ landing_zones:
       address:                         # ⚠️ No VNET defined → excluded from local.vnets in locals.tf
       subnet:
         address:                      # ⚠️ No subnet defined → excluded from local.subnets in locals.tf
+
+  app_gamma:
+    id: APPGAMMA                         
+    sequence_no: 3                       
+    virtual_network:
+      address:                         
+      subnet:
+        address:       
